@@ -26,11 +26,10 @@ public class OdometryCode {
     double ChangeHeading = 0;
     public double HeadingRAD = 0;
     public double HeadingDEG = 0;
-    double ChangePerp = 0;
-    double ChangePara = 0;
+    public double ChangePerp = 0;
+    public double ChangePara = 0;
     public double ParaDist = 0;
     public double PerpDist = 0;
-
 
 
 

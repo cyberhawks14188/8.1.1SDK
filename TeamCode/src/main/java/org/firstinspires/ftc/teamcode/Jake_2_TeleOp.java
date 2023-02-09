@@ -30,11 +30,13 @@ public class Jake_2_TeleOp extends LinearOpMode {
     //test
     public static double tickstoin = 1825;
     public static double Trackwidth = 8.35;
-    public static double VertOffset = 4.75;
+    public static double VertOffset = 4.9;
     public static double zP = .0006;
     public static double zD = 0.002;
     public static double LIFTP = .0003;
     public static double LIFTSPEEDSET = 1500;
+    public static double Headingsetpoint = 0;
+    public static double HeadinSpeedSet = 300;
 
     double x, y, z;
     double finalX, finalY;
@@ -60,6 +62,8 @@ public class Jake_2_TeleOp extends LinearOpMode {
 
     boolean lastx = false;
     boolean lasty = false;
+
+    double testangle = 0;
 
     double alignmentBarSet = 0.99;
     boolean lastStart = false;
@@ -136,7 +140,24 @@ public class Jake_2_TeleOp extends LinearOpMode {
             //*********Odometry Calculation*************
             ODO.OdoCalc(robot.MotorVL.getCurrentPosition(), robot.MotorHL.getCurrentPosition(), robot.MotorVR.getCurrentPosition());
 
+            robot.angles  = robot.imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.ZYX, AngleUnit.DEGREES);
 
+
+            if(SpeedClass.currentSpeed < 1 && HDing.headingCurrentSpeed < 5 && IMUTimer == 10000){
+                IMUTimer = getRuntime() + .5;
+            }else{
+                IMUTimer = 10000;
+            }
+
+            if(IMUTimer < getRuntime()){
+                if(robot.angles.firstAngle > 0){
+                    ODO.HeadingDEG = robot.angles.firstAngle - 360;
+                    ODO.HeadingRAD = Math.toRadians(robot.angles.firstAngle - 360);
+                }else{
+                    ODO.HeadingDEG = robot.angles.firstAngle;
+                    ODO.HeadingRAD = Math.toRadians(robot.angles.firstAngle);
+                }
+            }
 
             //**********Alignemnt Bar Positioning************
             if(gamepad1.start && !lastStart){
@@ -154,7 +175,7 @@ public class Jake_2_TeleOp extends LinearOpMode {
 
 
             //************ Lift Code ****************
-            liftcurrentpos = -robot.MotorLift.getCurrentPosition();
+            liftcurrentpos = robot.MotorLift.getCurrentPosition();
 
             if(gamepad1.dpad_down){
                 liftset = 0;
@@ -199,12 +220,12 @@ public class Jake_2_TeleOp extends LinearOpMode {
 
             lift.LiftMethod(liftset, liftSpeedSet, liftcurrentpos, getRuntime());
 
-            /*if(robot.MotorLift.getCurrent(CurrentUnit.MILLIAMPS) > 4000 && liftset < liftcurrentpos - 100){
+            if(robot.MotorLift.getCurrent(CurrentUnit.MILLIAMPS) > 4000 && liftset < liftcurrentpos - 100){
                 robot.MotorLift.setPower(0);
                 liftset = liftcurrentpos + 50;
-            }else{*/
+            }else{
                 robot.MotorLift.setPower(lift.liftpower);
-            //}
+            }
 
 
             //*********** Intake Code ***************
@@ -283,6 +304,7 @@ public class Jake_2_TeleOp extends LinearOpMode {
                 HDing.HeadingMethod(headingsetpoint, 250, ODO.HeadingDEG, getRuntime());
             }
 
+            //HDing.HeadingMethod(Headingsetpoint, HeadinSpeedSet, ODO.HeadingDEG, getRuntime());
             z = HDing.headingPower;
             if(z > 1){
                 z = 1;
@@ -314,14 +336,24 @@ public class Jake_2_TeleOp extends LinearOpMode {
             if(!gamepad1.start){
                 lastStart = false;
             }
+
+            dashboardTelemetry.addData("robot.IntakeLeftColor.blue()", robot.IntakeLeftColor.blue());
+            dashboardTelemetry.addData("robot.IntakeRightColor.blue()", robot.IntakeLeftColor.blue());
+            dashboardTelemetry.update();
+
+
+            telemetry.update();
             if(showTelemetry){
                 //**************** Telemetry **********************
                 //dashboardTelemetry.addData("baseDistance", robot.BaseDistanceSensor.getDistance(DistanceUnit.INCH));
                 dashboardTelemetry.addData("intake Distance Sensor", robot.IntakeDS.getDistance(DistanceUnit.INCH));
-                dashboardTelemetry.addData("heading", ODO.HeadingDEG);
+
                 dashboardTelemetry.addData("headingSet", headingsetpoint);
                 dashboardTelemetry.addData("heading Speed", HDing.headingCurrentSpeed);
                 dashboardTelemetry.update();
+
+                telemetry.addData("right color blue", robot.IntakeRightColor.blue());
+                telemetry.addData("base distance sensor inch", robot.BaseDS.getDistance(DistanceUnit.INCH));
                 telemetry.addData("telemetry trasmission speed", telemetry.getMsTransmissionInterval());
                 telemetry.addData("lift milliamp", robot.MotorLift.getCurrent(CurrentUnit.MILLIAMPS));
                 //telemetry.addData("imu first angle", angles.firstAngle);

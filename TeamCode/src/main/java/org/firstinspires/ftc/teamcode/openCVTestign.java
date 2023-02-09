@@ -224,10 +224,10 @@ public class openCVTestign extends LinearOpMode
             Scalar scalarUpperHSV = new Scalar(35, 255, 255);
 
             if(openCVTestign.colorTrigger == false){//pole detection
-                scalarLowerHSV = new Scalar(14, 80, 200);//for adjusting
+                scalarLowerHSV = new Scalar(14, 80, 200);//yellow
                 scalarUpperHSV = new Scalar(35, 255, 255);
             }else{//for line Detection
-                if(openCVTestign.colorTrigger == false){//blue
+                if(openCVTestign.redBlueTrigger == false){//blue
                     scalarLowerHSV = new Scalar(86, 75, 150);
                     scalarUpperHSV = new Scalar(124, 255, 255);
                 }else{
@@ -235,9 +235,138 @@ public class openCVTestign extends LinearOpMode
                    // Scalar scalarUpperHSV = new Scalar(TSEHmax, TSESmax, TSEVmax);//for adjusting
                 }
             }
-            scalarLowerHSV = new Scalar(TSEHmin, TSESmin, TSEVmin);
-            scalarUpperHSV = new Scalar(TSEHmax, TSESmax, TSEVmax);
+            //scalarLowerHSV = new Scalar(TSEHmin, TSESmin, TSEVmin);
+            //scalarUpperHSV = new Scalar(TSEHmax, TSESmax, TSEVmax);
+            scalarLowerHSV = new Scalar(14, 80, 200);//yellow
+            scalarUpperHSV = new Scalar(35, 255, 255);
+            //Scalar scalarLowerYCrCb = new Scalar(30.0, 120.0, 75.0);//GREEN
+            //Scalar scalarUpperYCrCb = new Scalar(78.0, 255.0, 255.0);//GREEN
+            //Scalar scalarLowerYCrCb = new Scalar(130.0, 0.0, 50.0);//Purple
+            //Scalar scalarUpperYCrCb = new Scalar(180.0, 255.0, 255.0);//Purple
+            // min 0,0,0**************************************************************************************************************************************************
+            // Max 180, 255,255*******************************************************************************************************************************************
+            Mat maskRed = new Mat();
+            //BLUE DO NOT REMOVE
+            //Scalar scalarLowerYCrCb = new Scalar(80.0, 70.0, 100.0);
+            //Scalar scalarUpperYCrCb = new Scalar(180.0, 255.0, 255.0);
 
+            //inRange(HSV, lowYellow, highYellow, maskYellow);
+            //inRange(HSV, lowWhite, highWhite, maskWhite);
+            inRange(HSV, scalarLowerHSV, scalarUpperHSV, maskRed);
+
+            poleContours.clear();
+
+            Imgproc.findContours(maskRed, poleContours, new Mat(), Imgproc.RETR_TREE, Imgproc.CHAIN_APPROX_SIMPLE);
+            Imgproc.drawContours(input, poleContours, -1, AQUA); //input
+
+            yLowest = -1;
+            indexLowest = 0;
+            /*Imgproc.rectangle(input, new Point(100, 225), new Point(210,375), AQUA);
+            Imgproc.rectangle(input, new Point(210, 225), new Point(340, 375), PARAKEET);
+            Imgproc.rectangle(input, new Point(340, 225), new Point(480, 375), GOLD);*/ //bounding boxes used for location in freight frnezy but not not needed rn
+
+            TSELocation = 0;
+            if (poleContours.size() > 0) {
+                for (int i = 0; i < poleContours.size(); i++) {
+                    if (filterContours(poleContours.get(i))) {
+                        poleBoundingBox = Imgproc.boundingRect(poleContours.get(i));
+                        Imgproc.rectangle(input, poleBoundingBox, AQUA, 10);
+                        if(poleBoundingBox.height > 100) {
+                            /*if ((Imgproc.contourArea(poleContours.get(i)) / (poleBoundingBox.width * poleBoundingBox.height)) > yLowest) {
+                                indexLowest = i;
+                                yLowest = (Imgproc.contourArea(poleContours.get(i)) / (poleBoundingBox.width * poleBoundingBox.height));
+                            }*/
+                           /* if (poleBoundingBox.height > yLowest) {
+                                indexLowest = i;
+                                yLowest = poleBoundingBox.height;
+                            }*/
+                            if ((poleBoundingBox.width * poleBoundingBox.height) > yLowest) {
+                                indexLowest = i;
+                                yLowest = (poleBoundingBox.width * poleBoundingBox.height);
+                            }
+                        }
+                    }
+                }
+                poleBoundingBox = Imgproc.boundingRect(poleContours.get(indexLowest));
+                Imgproc.rectangle(input, poleBoundingBox, CRIMSON, -5);
+
+
+                poleCenterX = poleBoundingBox.x + (.5 * poleBoundingBox.width);
+                poleWidth = poleBoundingBox.width;
+
+
+            } else {
+                yLowest = -1;
+                poleCenterX = 0;
+
+            }
+
+
+            maskRed.release();
+
+
+            YCrCb.release();
+            RGBA.release();
+            HSV.release();
+            poleContours.clear();
+
+
+            return input;
+        }
+    }
+    public static class BlueOpenCV_Pipeline extends OpenCvPipeline {
+        openCVTestign openCVTestign = new openCVTestign();
+
+        /** Most important section of the code: Colors **/
+        static final Scalar GOLD = new Scalar(255, 215, 0);
+        static final Scalar CRIMSON = new Scalar(220, 20, 60);
+        static final Scalar AQUA = new Scalar(79, 195, 247);
+        static final Scalar PARAKEET = new Scalar(3, 192, 74);
+        static final Scalar CYAN = new Scalar(0, 139, 139);
+        static final Scalar WHITE = new Scalar(255, 255, 255);
+
+        int indexLowest; double yLowest = -10;
+
+        double TSELocation = 0;
+        public double test = 0;
+
+        // Create a Mat object that will hold the color data
+
+
+        public Rect poleBoundingBox;
+
+
+        List<MatOfPoint> poleContours;
+
+        // Make a Constructor
+        public BlueOpenCV_Pipeline() {
+
+            poleContours = new ArrayList<MatOfPoint>();
+
+        }
+
+        public boolean filterContours(MatOfPoint contour) {
+            return Imgproc.contourArea(contour) > 0;//not needed atm but might in the future
+        }
+
+        @Override
+        public Mat processFrame(Mat input) {
+
+            Mat YCrCb = new Mat();
+            Mat HSV = new Mat();
+            Mat RGBA = new Mat();
+
+            Imgproc.cvtColor(input, HSV, Imgproc.COLOR_RGB2HSV);
+
+            Scalar scalarLowerHSV = new Scalar(14, 80, 200);//for adjusting
+            Scalar scalarUpperHSV = new Scalar(35, 255, 255);
+
+
+            //scalarLowerHSV = new Scalar(TSEHmin, TSESmin, TSEVmin);
+            //scalarUpperHSV = new Scalar(TSEHmax, TSESmax, TSEVmax);
+
+            scalarLowerHSV = new Scalar(86, 75, 150);//BLUE
+            scalarUpperHSV = new Scalar(124, 255, 255);//BLUE
             //Scalar scalarLowerYCrCb = new Scalar(30.0, 120.0, 75.0);//GREEN
             //Scalar scalarUpperYCrCb = new Scalar(78.0, 255.0, 255.0);//GREEN
             //Scalar scalarLowerYCrCb = new Scalar(130.0, 0.0, 50.0);//Purple

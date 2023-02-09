@@ -11,6 +11,9 @@ import com.qualcomm.robotcore.hardware.DcMotor;
 
 import org.firstinspires.ftc.robotcore.external.Telemetry;
 import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
+import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
+import org.firstinspires.ftc.robotcore.external.navigation.AxesOrder;
+import org.firstinspires.ftc.robotcore.external.navigation.AxesReference;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.teamcode.DriveCode.DirectionCalc;
 import org.firstinspires.ftc.teamcode.DriveCode.HeadingControl;
@@ -29,7 +32,7 @@ import java.util.ArrayList;
 @Config
 @Autonomous
 
-public class RightPlaceSensorAuto extends LinearOpMode {
+public class RightPlaceODOAuto extends LinearOpMode {
 
     Jake_2_Hardware robot = new Jake_2_Hardware();
     OdometryCode ODO = new OdometryCode();
@@ -62,11 +65,19 @@ public class RightPlaceSensorAuto extends LinearOpMode {
     double minDist = 10000;
     double minDistPara = 0, minDistPerp = 0;
     boolean hasDistanceFrom = false;
-
-
+    double intakeStackNum = 1;
+    double lastAction = 0;
+    double intakedPara = 0;
+    double intakedPerp = 0;
+    double IMUTimer = 10000;
+    double lowJunctionPerp = 0;
+    double tapeCenterError = 0,  tapecenterLastError = 0;
+    boolean zeroZoneTrigger = true;
 
     public static double speedP = .002;
     public static double speedD = .004;
+    public static double cameraP = .000023;//originally -.01
+    public static double cameraD = 0.00008;
 
     //AprilTag initialaization here
 
@@ -76,6 +87,7 @@ public class RightPlaceSensorAuto extends LinearOpMode {
     static final double FEET_PER_METER = 3.28084;
 
     // Lens intrinsics
+
     // UNITS ARE PIXELS
     // NOTE: this calibration is for the C920 webcam at 800x448.
     // You will need to do your own calibration for other configurations!
@@ -104,6 +116,8 @@ public class RightPlaceSensorAuto extends LinearOpMode {
         //initializes FTC dahsboard
         FtcDashboard dashboard = FtcDashboard.getInstance();
         Telemetry dashboardTelemetry = dashboard.getTelemetry();
+        openCV.redBlueTrigger = false;
+        openCV.colorTrigger = false;
 
 
         //initialized the hardware map
@@ -118,8 +132,8 @@ public class RightPlaceSensorAuto extends LinearOpMode {
 
 
         //initilaize the camera for the Apriltags
-        int cameraMonitorViewId = hardwareMap.appContext.getResources().getIdentifier("cameraMonitorViewId", "id", hardwareMap.appContext.getPackageName());
-      /*  APRILcamera = OpenCvCameraFactory.getInstance().createWebcam(hardwareMap.get(WebcamName.class, "AprilTagsCamera"));//, cameraMonitorViewId);
+       // int cameraMonitorViewId = hardwareMap.appContext.getResources().getIdentifier("cameraMonitorViewId", "id", hardwareMap.appContext.getPackageName());
+        APRILcamera = OpenCvCameraFactory.getInstance().createWebcam(hardwareMap.get(WebcamName.class, "AprilTagsCamera"));//, cameraMonitorViewId);
         aprilTagDetectionPipeline = new AprilTagDetectionPipeline(tagsize, fx, fy, cx, cy);
 
         telemetry.addLine("april");
@@ -132,6 +146,7 @@ public class RightPlaceSensorAuto extends LinearOpMode {
             public void onOpened()
             {
                 APRILcamera.startStreaming(1280,720, OpenCvCameraRotation.UPSIDE_DOWN);
+                FtcDashboard.getInstance().startCameraStream(APRILcamera, 30);
             }
 
             @Override
@@ -139,11 +154,11 @@ public class RightPlaceSensorAuto extends LinearOpMode {
             {
 
             }
-        });*/
+        });
 
 
-        webcam = OpenCvCameraFactory.getInstance().createWebcam(hardwareMap.get(WebcamName.class, "IntakeCamera"), cameraMonitorViewId);
-        //webcam = OpenCvCameraFactory.getInstance().createWebcam(hardwareMap.get(WebcamName.class, "IntakeCamera"));
+       // webcam = OpenCvCameraFactory.getInstance().createWebcam(hardwareMap.get(WebcamName.class, "IntakeCamera"), cameraMonitorViewId);
+        webcam = OpenCvCameraFactory.getInstance().createWebcam(hardwareMap.get(WebcamName.class, "IntakeCamera"));
 
         // OR...  Do Not Activate the Camera Monitor View
         //webcam = OpenCvCameraFactory.getInstance().createWebcam(hardwareMap.get(WebcamName.class, "IntakeCamera"));
@@ -153,7 +168,7 @@ public class RightPlaceSensorAuto extends LinearOpMode {
          * of a frame from the camera. Note that switching pipelines on-the-fly
          * (while a streaming session is in flight) *IS* supported.
          */
-        webcam.setPipeline(new openCVTestign.OpenCV_Pipeline());
+        webcam.setPipeline(new openCVTestign.BlueOpenCV_Pipeline());
 
         /*
          * Open the connection to the camera device. New in v1.4.0 is the ability
@@ -188,7 +203,8 @@ public class RightPlaceSensorAuto extends LinearOpMode {
                  * away from the user.
                  */
                 webcam.startStreaming(640, 480, OpenCvCameraRotation.UPRIGHT);
-                FtcDashboard.getInstance().startCameraStream(webcam, 30);
+
+
 
             }
 
@@ -201,15 +217,13 @@ public class RightPlaceSensorAuto extends LinearOpMode {
             }
         });
 
-        webcam.setPipeline(new openCVTestign.OpenCV_Pipeline());
-
-        telemetry.setMsTransmissionInterval(50);
+        //telemetry.setMsTransmissionInterval(50);
 
         telemetry.addLine("apriltags");
         telemetry.update();
 
         // while init loop for the apriltags
-     /*   while (!isStarted() && !isStopRequested())
+        while (!isStarted() && !isStopRequested())
         {
             ArrayList<AprilTagDetection> currentDetections = aprilTagDetectionPipeline.getLatestDetections();
 
@@ -266,7 +280,7 @@ public class RightPlaceSensorAuto extends LinearOpMode {
             telemetry.addData("in init", 0);
             telemetry.update();
             sleep(20);
-        }*/
+        }
 
         //start of init
         waitForStart();
@@ -277,7 +291,7 @@ public class RightPlaceSensorAuto extends LinearOpMode {
          */
 
         /* Update the telemetry */
-       /* if(tagOfInterest != null)
+        if(tagOfInterest != null)
         {
             telemetry.addLine("Tag snapshot:\n");
             tagToTelemetry(tagOfInterest);
@@ -287,8 +301,8 @@ public class RightPlaceSensorAuto extends LinearOpMode {
         {
             telemetry.addLine("No tag snapshot available, it was never sighted during the init loop :(");
             telemetry.update();
-        }*/
-        //APRILcamera.closeCameraDevice();
+        }
+        APRILcamera.closeCameraDevice();
 
         robot.MotorVL.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         robot.MotorVR.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
@@ -306,10 +320,20 @@ public class RightPlaceSensorAuto extends LinearOpMode {
         ODO.ParaDist = 0;
         ODO.PerpDist = 0;
 
+
         //the auto loop
         startOfMatch = getRuntime();
         robot.AlignmentBar.setPosition(0.99);
+
+        startOfMatch = getRuntime();
         while (opModeIsActive()) {
+
+            if(getRuntime() - startOfMatch > 25){
+                action = 99;
+                oneloop = false;
+            }
+
+            robot.angles  = robot.imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.ZYX, AngleUnit.DEGREES);
 
             SpeedClass.speedP = speedP;
             SpeedClass.speedD = speedD;
@@ -318,19 +342,15 @@ public class RightPlaceSensorAuto extends LinearOpMode {
 
             if(action == 1) {//move 1 to aim to the alliance High junction
                 speedSet = 23;
-                rampDownDist = 4;
+                rampDownDist = 8;
                 liftSpeedSet = 1200;
+                liftSet = 200;
                 paraSet = 10;
                 perpSet = -19;
                 paraStart = 0;
                 perpStart = 0;
                 headingSpeedSet = 130;
                 headingSet = -90;
-                if (DirectionCalc.distanceFrom < 8) {
-                    liftSet = 825;
-                } else {
-                    liftSet = 100;
-                }
                 if (DirectionCalc.distanceFrom < 2 && oneloop && Math.abs(HDing.headingError) < 10) {
                     action = 2;
                     oneloop = false;
@@ -341,17 +361,14 @@ public class RightPlaceSensorAuto extends LinearOpMode {
             }else if(action == 2) {//move 1 to aim to the alliance High junction
                 speedSet = 20;
                 rampDownDist = 5;
-                paraSet = 47;
-                perpSet = -23;
+                paraSet = 43;
+                perpSet = -25;
                 paraStart = 10;
                 perpStart = -19;
                 headingSpeedSet = 130;
                 headingSet = -90;
-
-                if(robot.BaseDS.getDistance(DistanceUnit.INCH) < minDist && ODO.ParaDist > 30){
-                    minDist = robot.BaseDS.getDistance(DistanceUnit.INCH);
-                    minDistPara = ODO.ParaDist;
-                    minDistPerp = ODO.PerpDist;
+                if(ODO.ParaDist > 18){
+                    liftSet = 1125;
                 }
 
                 if (DirectionCalc.distanceFrom < 2 && oneloop && Math.abs(HDing.headingError) < 10) {
@@ -362,81 +379,39 @@ public class RightPlaceSensorAuto extends LinearOpMode {
                 }
 
             }else if(action == 3){
-                oneloop = true;
-                speedSet = 15;
-                liftSet = 1125;
-                rampDownDist = 7;
-                paraSet = minDistPara + 1;
-                perpSet = minDistPerp -  (minDist - 5);
-                paraStart = 47;
-                perpStart = -23;
-                headingSpeedSet = 90;
-                headingSet = -90;
-
-              /*  if (oneloop) {
-                    if(DirectionCalc.distanceFrom < 1){
-                        hasDistanceFrom = true;
-                    }
-
-                    if(Math.abs(320 - openCVTestign.poleCenterX) > 40){
-
-                        if(hasDistanceFrom) {
-                            if (Math.abs(320 - openCVTestign.poleCenterX) < 60) {
-                                headingSet = Math.copySign(ODO.HeadingDEG + (.3 * ((320 - openCVTestign.poleCenterX)) / 60), ODO.HeadingDEG + (.2 * (320 - openCVTestign.poleCenterX)));
-                            } else {
-                                headingSet = ODO.HeadingDEG + (.2 * (320 - openCVTestign.poleCenterX));
-                            }
-                        }
-
-
-                        if(hasDistanceFrom && robot.BaseDS.getDistance(DistanceUnit.INCH) > 5.5 || hasDistanceFrom && robot.BaseDS.getDistance(DistanceUnit.INCH) < 3.5){
-                            perpSet = ODO.PerpDist + (1.5 * (4.5- robot.BaseDS.getDistance(DistanceUnit.INCH)));
-                        }
-                    }else{
-                        if(DirectionCalc.distanceFrom < 1){
-                            action = 4;
-                            oneloop = false;
-                            waitVariable = 0;
-                        }
-
-                    }
-
-                } else {
+                if(!oneloop){
+                    waitVariable = getRuntime() + .75;
                     oneloop = true;
-                    speedSet = 15;
-                    liftSet = 1125;
-                    rampDownDist = 7;
-                    paraSet = minDistPara;
-                    perpSet = minDistPerp - (minDist - 5);
-                    paraStart = 47;
-                    perpStart = -23;
-                    headingSpeedSet = 90;
-                    headingSet = -90;
-                }*/
+                }
 
+                if(waitVariable != 0 && waitVariable < getRuntime()){
+                    action = 4;
+                    oneloop = false;
+                    liftSet = 1000;
+                    waitVariable = 0;
+
+                }
             }else if(action == 4){
                 if(robot.MotorLift.getCurrentPosition() < 1050 && waitVariable == 0){
                     waitVariable = getRuntime() + .5;
                     intakePower = -.5;
                 }
-                if(waitVariable < getRuntime() && intakePower == -.5){
+                if(waitVariable != 0 && waitVariable < getRuntime() && intakePower == -.5){
                     liftSet = 1125;
                     if(robot.MotorLift.getCurrentPosition() > 1100){
                         action = 5;
                         waitVariable = 0;
                         intakePower = 0;
                     }
-                }else{
-                    liftSet = 1000;
                 }
 
             }else if(action == 5){//moves out of the way of the high pole
-                speedSet = 15;
+                speedSet = 20;
                 paraSet = 52;
                 perpSet = -18;
-                paraStart = 48;
-                perpStart = -21;
-                headingSpeedSet = 200;
+                paraStart = 43;
+                perpStart = -25;
+                headingSpeedSet = 100;
                 headingSet = -270;
                 if(ODO.HeadingDEG < -110){
                     liftSet = 200;
@@ -449,9 +424,9 @@ public class RightPlaceSensorAuto extends LinearOpMode {
                 }
 
             } else if(action == 6){//gets close to the blue tape
-                rampDownDist = 10;
-                paraSet = 52;
-                perpSet = 10;
+                rampDownDist = 4;
+                paraSet = 53;
+                perpSet = 21;
                 paraStart = 52;
                 perpStart = -18;
                 headingSpeedSet = 200;
@@ -459,33 +434,222 @@ public class RightPlaceSensorAuto extends LinearOpMode {
 
                 if (DirectionCalc.distanceFrom < 2 && oneloop && Math.abs(HDing.headingError) < 10) {
                     action = 7;
+                    liftSet = 200;
                     oneloop = false;
-                    openCV.colorTrigger = true;
-                    openCV.redBlueTrigger = false;//setting the openCV pipline to blue not yellow
                     speedSet = 15;
+                    if(robot.angles.firstAngle > 0){
+                        ODO.HeadingDEG = 0 - robot.angles.firstAngle;
+                        ODO.HeadingRAD = Math.toRadians(0 - robot.angles.firstAngle);
+                    }else{
+                        ODO.HeadingDEG = -180 - (180 - Math.abs(robot.angles.firstAngle));
+                        ODO.HeadingRAD = Math.toRadians(-180 - (180 - Math.abs(robot.angles.firstAngle)));
+                    }
+
                 } else {
                     oneloop = true;
                 }
 
             }else if(action == 7){//centers on the tape and goes to intake
-                rampDownDist = 10;
-                paraSet = 52;
-                perpSet = 10;
-                paraStart = 52;
-                perpStart = 10;
+                intakePower = .5;
+                if(intakeStackNum == 1){
+                    liftSet = 175;
+                }else if(intakeStackNum == 2){
+                    liftSet = 125;
+                }else if(intakeStackNum == 3){
+                    liftSet = 80;
+                }else if(intakeStackNum == 4){
+                    liftSet = 40;
+                }else {
+                    liftSet = 0;
+                }
+
+                zeroZoneTrigger = false;
+                rampDownDist = .000001;
+                tapecenterLastError = tapeCenterError;
+
+                tapeCenterError = (robot.IntakeLeftColor.blue() - robot.IntakeRightColor.blue());
+
+                if(Math.abs(tapeCenterError) > 1000){
+                    paraSet = paraSet - (-cameraP * tapeCenterError) + ((tapeCenterError - tapecenterLastError) * -cameraD);
+                }
+
+
+
+                speedSet = 8;
+                perpSet = 25;
+                paraStart = 53;
+                perpStart = -18;
                 headingSpeedSet = 200;
                 headingSet = -270;
 
-                if(Math.abs(320 - openCVTestign.poleCenterX) < 75){
-                    paraSet = Math.copySign(ODO.ParaDist - (.1 * ((320 - openCVTestign.poleCenterX))/75), ODO.HeadingDEG + (.2 * (320 - openCVTestign.poleCenterX)));
+                if(robot.IntakeDS.getDistance(DistanceUnit.INCH) > 2){
+                    perpSet = ODO.PerpDist + 2;
                 }else{
-                    paraSet = ODO.ParaDist - (.1 * (320 - openCVTestign.poleCenterX));
+                    perpSet = ODO.PerpDist;
+                    perpStart = ODO.PerpDist;
+                    paraStart = ODO.ParaDist;
+                    intakedPara = ODO.ParaDist;
+                    minDist = 1000;
+
+                    action = 8;
+                    webcam.setPipeline(new openCVTestign.OpenCV_Pipeline());
+                    intakeStackNum = intakeStackNum + 1;
                 }
 
+
+            }else if(action == 8){//aligns with mid junction
+                liftSet = 825;
+                if(robot.MotorLift.getCurrentPosition() > 300){
+                    rampDownDist = 4;
+                    speedSet = 20;
+                    paraSet = intakedPara - 6;
+                    perpSet = -10;
+                    headingSpeedSet = 150;
+                    headingSet = -180;
+                    /*   if(ODO.HeadingDEG > -190 && robot.MotorLift.getCurrentPosition() > 100 && ODO.PerpDist > 0){
+                        if(robot.BaseDS.getDistance(DistanceUnit.INCH) < minDist){
+                            minDist = robot.BaseDS.getDistance(DistanceUnit.INCH);
+                            lowJunctionPerp = ODO.PerpDist;
+                        }
+                    }*/
+
+                    if (DirectionCalc.distanceFrom < 1 && oneloop && Math.abs(HDing.headingError) < 5) {
+                        action = 9;
+                        oneloop = false;
+                    } else {
+                        oneloop = true;
+                    }
+
+                }
+            }else if(action == 9){//lets robot settle
+
+
+
+           /*     if(Math.abs(320 - openCVTestign.poleCenterX) < 65){
+                    perpSet = Math.copySign(ODO.PerpDist - (cameraP * ((320 - openCVTestign.poleCenterX))/65), ODO.PerpDist + (cameraP * (320 - openCVTestign.poleCenterX)));
+                }else{
+                    perpSet = ODO.PerpDist - (cameraP * (320 - openCVTestign.poleCenterX));
+                }*/
+
+                if(HDing.headingCurrentSpeed < 5){
+                    if(robot.angles.firstAngle > 0){
+                        ODO.HeadingDEG = 0 - robot.angles.firstAngle;
+                        ODO.HeadingRAD = Math.toRadians(0 - robot.angles.firstAngle);
+                    }else{
+                        ODO.HeadingDEG = -180 - (180 - Math.abs(robot.angles.firstAngle));
+                        ODO.HeadingRAD = Math.toRadians(-180 - (180 - Math.abs(robot.angles.firstAngle)));
+                    }
+                }
+
+                if(!oneloop){
+                    waitVariable = getRuntime() + .75;
+                    oneloop = true;
+                }
+
+                if(waitVariable != 0 && waitVariable < getRuntime()){
+                    action = 10;
+                    oneloop = false;
+                    liftSet = 750;
+                    waitVariable = 0;
+                    webcam.setPipeline(new openCVTestign.BlueOpenCV_Pipeline());
+                }
+
+
+
+            }else if(action == 10){//drops cone
+                if(robot.MotorLift.getCurrentPosition() < 1050 && waitVariable == 0){
+                    waitVariable = getRuntime() + .5;
+                    intakePower = -.5;
+
+                }
+                if(waitVariable != 0 && waitVariable < getRuntime() && intakePower == -.5){
+                    liftSet = 825;
+                    if(robot.MotorLift.getCurrentPosition() > 800){
+                        action = 11;
+                        oneloop = false;
+                        waitVariable = 0;
+                        intakePower = 0;
+                    }
+                }
+            }else if(action == 11){//goes back to the stack
+                rampDownDist = 4;
+                if(intakedPara != 0){
+                    paraSet = intakedPara;
+                }else{
+                    paraSet = 52;
+                }
+                perpSet = 21;
+                paraStart = 52;
+                perpStart = -18;
+                headingSpeedSet = 30;
+                speedSet = 10;
+                headingSet = -270;
+
+                if(ODO.HeadingDEG < -200){
+                    liftSet = 200;
+                    speedSet = 15;
+                    headingSpeedSet = 90;
+                }
+
+                if (DirectionCalc.distanceFrom < 2 && oneloop && Math.abs(HDing.headingError) < 10) {
+                    action = 7;
+                    oneloop = false;
+                    speedSet = 15;
+                } else {
+                    oneloop = true;
+                }
+            }else if(action == 99){
+                if(!oneloop){
+                    perpStart = ODO.PerpDist;
+                    paraStart = ODO.ParaDist;
+                }
+
+                speedSet = 23;
+                rampDownDist = 4;
+                liftSpeedSet = 1200;
+                liftSet = 200;
+
+                headingSpeedSet = 130;
+                headingSet = 0;
+                paraSet = 52;
+                if(tagOfInterest.id == 1){
+                    perpSet = -20;
+                }else if(tagOfInterest.id == 2){
+                    perpSet = 2;
+                }else{
+                    perpSet = 26;
+                }
+
+                if (DirectionCalc.distanceFrom < 2 && oneloop && Math.abs(HDing.headingError) < 10) {
+                    action = 100;
+                    oneloop = false;
+                } else {
+                    oneloop = true;
+                }
             }else {
                 break;
             }
 
+            if(SpeedClass.currentSpeed < 1 && HDing.headingCurrentSpeed < 5 && IMUTimer == 10000){
+                IMUTimer = getRuntime() + .5;
+            }else{
+                IMUTimer = 10000;
+            }
+
+         /*   if(IMUTimer < getRuntime()){
+                if(robot.angles.firstAngle > 0){
+                    ODO.HeadingDEG = 0 - robot.angles.firstAngle;
+                    ODO.HeadingRAD = Math.toRadians(0 - robot.angles.firstAngle);
+                }else{
+                    ODO.HeadingDEG = -180 - (180 - Math.abs(robot.angles.firstAngle));
+                    ODO.HeadingRAD = Math.toRadians(-180 - (180 - Math.abs(robot.angles.firstAngle)));
+                }
+                IMUTimer = 10000;
+            }
+
+          */
+
+            lastAction = action;
 
             Lift.LiftMethod(liftSet, liftSpeedSet, robot.MotorLift.getCurrentPosition(), getRuntime());
             Drivetrain(paraSet, perpSet, paraStart, perpStart, speedSet, rampUpDist, rampDownDist, headingSet, headingSpeedSet, ODO.ParaDist, ODO.PerpDist, ODO.HeadingDEG, getRuntime());
@@ -496,27 +660,27 @@ public class RightPlaceSensorAuto extends LinearOpMode {
             robot.MotorHL.setPower(RLDIR);
             robot.MotorHR.setPower(RRDIR);
 
-            telemetry.addData("min dist", minDist);
+
+            telemetry.addData("angles.first", robot.angles.firstAngle);
+            telemetry.addData("intaked Para", intakedPara);
+            telemetry.addData("lowjunctionperp", lowJunctionPerp);
             telemetry.addData("base DS", robot.BaseDS.getDistance(DistanceUnit.INCH));
-            telemetry.addData("waitVariable", waitVariable);
             telemetry.addData("test", Math.abs(320 - openCVTestign.poleCenterX));
 
-            telemetry.addData("lift", -robot.MotorLift.getCurrentPosition());
+            telemetry.addData("lift", robot.MotorLift.getCurrentPosition());
             telemetry.addData("heading error abs", Math.abs(HDing.headingError));
             telemetry.addData("heading power", HDing.headingPower);
-            telemetry.addData("FinalX", FinalX);
-            telemetry.addData("FinalY", FinalY);
             telemetry.addData("speed power", SpeedClass.speedPower);
             telemetry.addData("dist from", DirectionCalc.distanceFrom);
             telemetry.addData("para current", ODO.ParaDist);
             telemetry.addData("perp current", ODO.PerpDist);
+
             telemetry.addData("heading", ODO.HeadingDEG);
             telemetry.addData("action", action);
-            telemetry.addData("para dist", ODO.ParaDist);
-            telemetry.addData("perp dist", ODO.PerpDist);
-            telemetry.addData("LLDIR", LLDIR);
-
             telemetry.update();
+            dashboardTelemetry.addData("tapeCenterError", tapeCenterError);
+            dashboardTelemetry.addData("robot.IntakeLeftColor.blue()", robot.IntakeLeftColor.blue());
+            dashboardTelemetry.addData("robot.IntakeRightColor.blue()", robot.IntakeRightColor.blue());
             dashboardTelemetry.update();
 
             lastHeadingSet = headingSet;
@@ -558,11 +722,14 @@ public class RightPlaceSensorAuto extends LinearOpMode {
         RLDIR = RLDIR/MaxMotor;
         RRDIR = RRDIR/MaxMotor;
 
-        if(DirectionCalc.distanceFrom < .5){
-            SpeedClass.speedPower = 0;
-            SpeedClass.lastSpeedError = 0;
+        if(zeroZoneTrigger){
+            if(DirectionCalc.distanceFrom < .375){
+                SpeedClass.speedPower = 0;
+                SpeedClass.lastSpeedError = 0;
+            }
         }
-        if(Math.abs(HDing.headingError) < 3){
+
+        if(Math.abs(HDing.headingError) < .5){
             HDing.headingPower = 0;
         }
 

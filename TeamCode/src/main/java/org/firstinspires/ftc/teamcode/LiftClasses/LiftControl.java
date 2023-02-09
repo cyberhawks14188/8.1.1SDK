@@ -44,8 +44,13 @@ public class LiftControl {
         liftSpeedDifference = liftSpeedSet - liftSpeed;
 
         liftCalPower += (liftSpeedDifference * liftP);
+        if(liftCalPower > 1){
+            liftCalPower = 1;
+        }else if(liftCalPower < -1){
+            liftCalPower = -1;
+        }
 
-        liftpower = -liftCalPower;
+        liftpower = liftCalPower;
 
         if(liftpower > 1){
             liftpower = 1;

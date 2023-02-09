@@ -36,6 +36,40 @@ public class Smoothing {
 
     }
 
+    double DistanceSensorInputTotal;
+    int DistanceSensorInputArrayNum = 0, DistanceSensorInputfirstLoop = 0;
+    double DistanceSensorInputArray[] = new double[20];
+
+    public double SmoothDistanceSensorInput(double input){
+        if(DistanceSensorInputfirstLoop == 0) {
+            DistanceSensorInputfirstLoop = 1;
+            for (int arrayInitialSet = 0; arrayInitialSet < 20; arrayInitialSet++) {
+                DistanceSensorInputArray[arrayInitialSet] = 0;
+            }
+        }
+        DistanceSensorInputTotal = DistanceSensorInputTotal - DistanceSensorInputArray[DistanceSensorInputArrayNum];
+
+        DistanceSensorInputArray[DistanceSensorInputArrayNum] = input;
+
+        DistanceSensorInputTotal = DistanceSensorInputTotal + DistanceSensorInputArray[DistanceSensorInputArrayNum];
+
+
+        DistanceSensorInputArrayNum = DistanceSensorInputArrayNum + 1;
+        if(DistanceSensorInputArrayNum >= 20){
+            DistanceSensorInputArrayNum = 0;
+        }
+
+        if(Math.abs(input) < .05){
+            for (int arrayInitialSet = 0; arrayInitialSet < 20; arrayInitialSet++) {
+                DistanceSensorInputArray[arrayInitialSet] = 0;
+            }
+            DistanceSensorInputTotal = 0;
+        }
+
+        return DistanceSensorInputTotal/20;
+
+    }
+
     double DirectionInputTotal;
     int DirectionInputArrayNum = 0, DirectionInputfirstLoop = 0;
     double DirectionInputArray[] = new double[10];

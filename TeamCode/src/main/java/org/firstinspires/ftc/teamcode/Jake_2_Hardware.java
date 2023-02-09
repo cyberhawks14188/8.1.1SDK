@@ -12,6 +12,9 @@ import com.qualcomm.robotcore.hardware.ServoImpl;
 import com.qualcomm.robotcore.hardware.ServoImplEx;
 
 import org.firstinspires.ftc.robotcore.external.navigation.Acceleration;
+import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
+import org.firstinspires.ftc.robotcore.external.navigation.AxesOrder;
+import org.firstinspires.ftc.robotcore.external.navigation.AxesReference;
 import org.firstinspires.ftc.robotcore.external.navigation.Orientation;
 import org.firstinspires.ftc.robotcore.external.navigation.Position;
 import org.firstinspires.ftc.robotcore.external.navigation.Velocity;
@@ -25,23 +28,15 @@ public class Jake_2_Hardware {
     public DcMotorEx MotorLift;
     public CRServo IntakeS;
     public Servo AlignmentBar;
-    //public DistanceSensor BaseDistanceSensor;
-    //public ColorRangeSensor colorSenor;
-    /* public DistanceSensor Dist1;
-     public DistanceSensor Dist2;
-     public DistanceSensor Dist3;
-     public DistanceSensor Dist4;
-     public DistanceSensor Dist5;
-     public DistanceSensor Dist6;
-     public DistanceSensor Dist7;
-     public DistanceSensor Dist8;*/
+    public DistanceSensor BaseDS;
     public DistanceSensor IntakeDS;
+    public ColorRangeSensor IntakeLeftColor;
+    public ColorRangeSensor IntakeRightColor;
 
 
-    //BNO055IMU imu;
+    BNO055IMU imu;
 
-    //Orientation angles;
-   // Acceleration gravity;
+    Orientation angles;
 
 
 
@@ -52,20 +47,19 @@ public class Jake_2_Hardware {
 
     public void init(HardwareMap testhardware){
 
-       /* BNO055IMU.Parameters parameters = new BNO055IMU.Parameters();
+        BNO055IMU.Parameters parameters = new BNO055IMU.Parameters();
         parameters.angleUnit           = BNO055IMU.AngleUnit.DEGREES;
         parameters.accelUnit           = BNO055IMU.AccelUnit.METERS_PERSEC_PERSEC;
         parameters.calibrationDataFile = "BNO055IMUCalibration.json"; // see the calibration sample opmode
-        parameters.loggingEnabled      = true;
+        parameters.loggingEnabled      = false;
         parameters.loggingTag          = "IMU";
         //parameters.accelerationIntegrationAlgorithm = new JustLoggingAccelerationIntegrator();
+
 
 
         imu = testhardware.get(BNO055IMU.class, "imu");
         imu.initialize(parameters);
 
-
-        imu.startAccelerationIntegration(new Position(), new Velocity(), 100);*/
 
 
         //colorSenor = testhardware.get(ColorRangeSensor.class, "ColorSensor");
@@ -73,7 +67,9 @@ public class Jake_2_Hardware {
 
 
         // Define motors and servos
-       // BaseDistanceSensor = testhardware.get(DistanceSensor.class, "BaseDistanceSensor");
+        IntakeLeftColor = testhardware.get(ColorRangeSensor.class, "IntakeLeftColor");
+        IntakeRightColor = testhardware.get(ColorRangeSensor.class, "IntakeRightColor");
+        BaseDS = testhardware.get(DistanceSensor.class, "BaseDS");
         IntakeS = testhardware.get(CRServo.class, "IntakeS");
         MotorVL = testhardware.get(DcMotorEx.class, "MotorVL");
         MotorVR = testhardware.get(DcMotorEx.class, "MotorVR");
